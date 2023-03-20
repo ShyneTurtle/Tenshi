@@ -1,0 +1,9 @@
+{
+  "name": "tenshi-bot",
+  "version": "0.0.1",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.39",
+    "discord.js": "^14.8.0",
+    "googleapis": "^113.0.0"
+  }
+}

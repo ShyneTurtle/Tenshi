@@ -1,0 +1,8 @@
+node_modules
+.vscode
+src/config.json
+src/gapi_auth.json
+package-lock.json
+logs.log
+errors.log
+data/*
