@@ -68,11 +68,8 @@ async function fetchCommands() {
     }
 }
 
-// Load commands on startup and refresh on edits
+// Load commands on startup
 fetchCommands();
-fs.watch(`${__dirname}/`, {
-    persistent: true,
-}, fetchCommands);
 
 
 /**@param interaction {Discord.CommandInteraction} */
