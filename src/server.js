@@ -1,5 +1,6 @@
 const Discord = require("discord.js");
 const Canvas = require("@napi-rs/canvas");
+Canvas.GlobalFonts.loadFontsFromDir(`${__dirname}/fonts/`);
 const fs = require("node:fs");
 const { google } = require("googleapis");
 
@@ -32,6 +33,72 @@ bot.on(Discord.Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isCommand())
         commandsManager(interaction, { config, utils, gauth_client });
+});
+
+// Bienvenue des membres
+bot.on(Discord.Events.GuildMemberAdd, async (member) => {
+    let chn_ready = member.guild.channels.fetch("1081125060808556544").catch(console.error);
+
+    // Resolve user img, with discord logo fallback
+    let m_pfp = await Canvas.loadImage(member.displayAvatarURL({extension: "png", forceStatic: true, size: 256})).catch(console.error);
+    if (!m_pfp)
+        m_pfp = await Canvas.loadImage(`${__dirname}/img/discord-mark-blue.png`).catch(console.error);
+
+    // Draw the image if we managed to get the integration image above
+    let attach = new Discord.AttachmentBuilder();
+    if (m_pfp) {
+        let cnv = Canvas.createCanvas(910, 273);
+        let ctx = cnv.getContext("2d");
+
+        ctx.fillStyle = "#2F3137";
+        ctx.fillRect(0, 0, cnv.width, cnv.height);
+
+        // Draw pfp
+        let m_pfp_w = 192, m_pfp_h = 192;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cnv.height/2, cnv.height/2, m_pfp_w/2, 0, Math.PI*2);
+        ctx.clip();
+        ctx.drawImage(m_pfp, cnv.height/2 - m_pfp_w/2, cnv.height/2 - m_pfp_h/2, m_pfp_w, m_pfp_h);
+        ctx.restore();
+        
+        // Draw text
+        ctx.fillStyle = "#FFF";
+        ctx.font = "96px Montserrat";
+        ctx.fillText(`Bienvenue`, cnv.height, 100);
+        ctx.font = "42px Montserrat";
+        ctx.fillText(`sur le serveur Discord`, cnv.height, 150);
+        ctx.font = "64px Montserrat";
+        ctx.fillText(`Tenshi Highschool`, cnv.height, 220);
+        
+        // Create attachment
+        attach
+            .setName(`${member.id}_bv.png`)
+            .setDescription("Image de bienvenue.")
+            .setSpoiler(false)
+            .setFile(cnv.encodeSync("png"));
+    }
+
+    // Send the message once both the image and the channel are ready.
+    chn_ready.then((chn) => {
+        if (chn.isTextBased())
+        chn.send({
+            embeds:[{
+                description: `🎉 Bienvenue sur le serveur 🎉`,
+                author: {
+                    name: `${member.user.username}`,
+                    icon_url: member.user.displayAvatarURL({forceStatic:true, extension: "png", size: 512}),
+                },
+                color: Discord.Colors.Green,
+                image: {
+                    url: `attachment://${attach.name}`,
+                }
+            }],
+            files:[
+                attach
+            ]
+        }).catch(console.error);
+    });
 });
 
 
