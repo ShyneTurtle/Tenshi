@@ -20,6 +20,8 @@ module.exports = async (interaction, destinataire, data) => {
         }).catch(console.error);
     }
 
+    await interaction.deferReply({ ephemeral: true });
+
     const new_sms_content = new Discord.TextInputBuilder()
         .setCustomId("new_sms_content")
         .setLabel(`Contenu du SMS:`)
@@ -36,44 +38,44 @@ module.exports = async (interaction, destinataire, data) => {
         .setCustomId(crypto.randomUUID())
         .setComponents(new_sms_row);
 
-    if (interaction.isRepliable)
+    // Obtenir tous les destinataires
+    let receivers = [];
+
+    if (destinataire instanceof Discord.GuildMember)
+        receivers.push(destinataire.user);
+    if (destinataire instanceof Discord.User)
+        receivers.push(destinataire);
+    if (destinataire instanceof Discord.Role)
+        receivers.push(...destinataire.members.map(v => v.user));
+
+    if (receivers.length <= 0) {
+        interaction.reply({
+            embeds: [{
+                title: `❌ Aucun destinataires trouvés.`,
+                description: `SMS_NO_RECEIVERS`,
+                color: Discord.Colors.Red,
+            }],
+            ephemeral: true,
+        }).catch(console.error);
+        return console.error(`[COMMAND] Cannot find a receiver for the SMS: ${interaction}`);
+    }
+
+    if (interaction.isRepliable())
         await interaction.showModal(new_sms_modal);
 
-    await interaction.awaitModalSubmit({ time: 900000, dispose: true, filter: v => v.customId == new_sms_modal.data.custom_id })
+    interaction.awaitModalSubmit({ time: 900000, dispose: true, filter: v => v.customId == new_sms_modal.data.custom_id })
         .then((modal_sub) => {
-            // Obtenir tous les destinataires
-            let receivers = [];
-
-            if (destinataire instanceof Discord.GuildMember)
-                receivers.push(destinataire.user);
-            if (destinataire instanceof Discord.User)
-                receivers.push(destinataire);
-            if (destinataire instanceof Discord.Role)
-                receivers.push(...destinataire.members.map(v => v.user));
-
-            if (receivers.length <= 0) {
-                interaction.followUp({
-                    embeds: [{
-                        title: `❌ Aucun destinataires trouvés.`,
-                        description: `SMS_NO_RECEIVERS`,
-                        color: Discord.Colors.Red,
-                    }],
-                    ephemeral: true,
-                }).catch(console.error);
-                return console.error(`[COMMAND] Cannot find a receiver for the SMS: ${interaction}`);
-            }
-
             // Formater les infos sous un format pratique
             let sms = {
-                sender: interaction.user,
+                sender: modal_sub.user,
                 receivers,
                 content: [modal_sub.fields.getField("new_sms_content").value],
             };
 
             // Si le message est trop long pour afficher en 1seul message, le couper en 2
             if (sms.content[0].length >= 1900) {
-                sms.content[1] = sms.content[0].substr(1900);
-                sms.content[0] = sms.content[0].substr(0, 1900);
+                sms.content[1] = sms.content[0].substring(1900);
+                sms.content[0] = sms.content[0].substring(0, 1900);
             }
 
             // Envoi du message à l'expéditeur
@@ -129,7 +131,8 @@ module.exports = async (interaction, destinataire, data) => {
                     modal_sub.guild.channels.fetch("1082259250404937728").then((chn) => {
                         chn.send(`SMS de ${sms.sender} à ${destinataire}: ${sms.content[0]}`).catch(console.error);
                         if (sms.content[1]) chn.send(sms.content[1]).catch(console.error);
-                    });
+                    })
+                    .catch(console.error);
                 }).catch(console.error);
         })
         .catch(console.error);
